@@ -39,7 +39,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
         X_list = []
         for i in range(1, 3 + 1):
             X_list.append([
-                df[f'emb{i}'].to_numpy()[np.newaxis, :],
+                # df[f'emb{i}'].to_numpy()[np.newaxis, :],
                 # np.array(df[f'emb{i}'].values.tolist()).T,
                 np.array(df[f'cm{i}'].values.tolist()).T,
                 df[f'pr{i}'].to_numpy()[np.newaxis, :],

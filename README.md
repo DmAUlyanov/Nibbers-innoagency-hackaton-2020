@@ -6,12 +6,18 @@
 * False Positive Rate
 * False Negative Rate
 * Confusion Matrix
-* Euclidian Distance Transform
+* Euclidion Distance Transform
 
 Дополнительно в качестве характеристик использовались латентные векторы, полученные от автоэнкодера.
 
 ![](feature_importance.jpg)
 ![](mean_error.jpg)
+
+Для запуска подсчета результатов необходимо выполнить:
+*python main.py path_to_dataset*
+
+Файл NibbersSubmission.csv с результатми скрипта будет лежать в корневой папке проекта
+
 
 *recurrent_autoencoder.ipynb*: содержит код для обучения и построения фич с помощью рекуррентного автоэнкодера. Автоэнкодер обучается восстанавливать данные о сегментации из файла DX_TEST_RESULT_FULL.csv, в качестве feature вектора используется выходное состояние энкодера.
 

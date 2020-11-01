@@ -136,7 +136,7 @@ def split_train_val(dataset_path, n_val, seed):
 
 def write_predictions(path, image_names, predictions):
     fieldnames = ['Case', 'Sample 1', 'Sample 2', 'Sample 3']
-    with open(os.path.join([path, 'NibbersSubmission.csv']), 'w') as f:
+    with open('NibbersSubmission.csv', 'w') as f:
         writer = csv.DictWriter(f, fieldnames)
         writer.writeheader()
         for image_name, pred in zip(image_names, predictions):
