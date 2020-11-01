@@ -38,7 +38,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
         X_list = []
         for i in range(1, 3 + 1):
             X_list.append([
-                df[f'emb{i}'].to_numpy()[np.newaxis, :],
+                # df[f'emb{i}'].to_numpy()[np.newaxis, :],
                 # np.array(df[f'emb{i}'].values.tolist()).T,
                 np.array(df[f'cm{i}'].values.tolist()).T,
                 df[f'pr{i}'].to_numpy()[np.newaxis, :],
@@ -113,7 +113,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
             recall = tp / (tp + fn + 1)     # recall
             fpr = fp / (fp + tn + 1)        # False Positive Rate
             fnr = fn / (fn + tp + 1)        # False Negative Rate
-            f1 = tp + (tp + (fp + fn) / 2)  # F1-score
+            f1 = tp / (tp+(fp + fn)/2+1)    # F1-score
             area_e = fn + tp                # Expert mask nonzero area
             area_s = fp + tn                # Sample mask nonzero area
 
@@ -139,9 +139,9 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
             expert_mask_area.append(area_e)
             sample_mask_area.append(area_s)
 
-            # TODO: document this
-            embs.append(np.dot(vectors[image_name][0].ravel(), vectors[image_name][i].ravel()))
-            # embs.append(0)
+            # add dot product between auto-encoder latent vectors as additional feature
+            # embs.append(np.dot(vectors[image_name][0].ravel(), vectors[image_name][i].ravel()))
+            embs.append(0)
 
             # just in case ¯\_(ツ)_/¯
             image_prefs.append(int(image_name.split('_')[0]))
@@ -303,9 +303,10 @@ def make_final_prediction(**kwargs):
 
 
 if __name__ == '__main__':
-    feature_importances = []
-    multi_eval_model(main_model, val_size=20, n_repeats=25, regressor_type='RF',
-                     feature_importances=feature_importances)
+    # feature_importances = []
+    # multi_eval_model(main_model, val_size=20, n_repeats=25, regressor_type='RF',
+    #                  feature_importances=feature_importances)
     # with open('f_imps.pkl', 'wb') as f:
     #     pickle.dump(feature_importances, f)
-    # make_final_prediction(regressor_type='RF')
+
+    make_final_prediction(regressor_type='RF')
