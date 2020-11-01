@@ -27,7 +27,8 @@ def baseline_model(train_image_names, val_image_names, **kwargs):
     return train_preds, val_preds
 
 
-def main_model(train_image_names, val_image_names, regressor_type=None, verbose=False, **kwargs):
+def main_model(train_image_names, val_image_names, regressor_type=None, verbose=False,
+               feature_importances=None, **kwargs):
     def extract_features_from_df(df):
         """
         Extract features from data frame and assemble them into a 2D matrix
@@ -46,6 +47,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
                 df[f'fpr{i}'].to_numpy()[np.newaxis, :],
                 df[f'fnr{i}'].to_numpy()[np.newaxis, :],
                 df[f'f1{i}'].to_numpy()[np.newaxis, :],
+                df[f'a_exp{i}'].to_numpy()[np.newaxis, :],
+                df[f'a_smp{i}'].to_numpy()[np.newaxis, :],
                 df[f'fp_edt{i}'].to_numpy()[np.newaxis, :],
                 df[f'fn_edt{i}'].to_numpy()[np.newaxis, :],
                 # df[f'i_prf{i}'].to_numpy()[np.newaxis, :],
@@ -89,6 +92,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
         fprs = []
         fnrs = []
         f1s = []
+        expert_mask_area = []
+        sample_mask_area = []
         image_prefs = []
         image_sufs = []
         fp_edts = []
@@ -109,6 +114,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
             fpr = fp / (fp + tn + 1)        # False Positive Rate
             fnr = fn / (fn + tp + 1)        # False Negative Rate
             f1 = tp + (tp + (fp + fn) / 2)  # F1-score
+            area_e = fn + tp                # Expert mask nonzero area
+            area_s = fp + tn                # Sample mask nonzero area
 
             # compute sample mask EDT in the same fashion as for the expert mask
             mask_s_edt = edt.edt(np.logical_not(mask_s), parallel=4) if mask_s.any() else \
@@ -129,6 +136,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
             f1s.append(f1)
             fp_edts.append(fp_edt)
             fn_edts.append(fn_edt)
+            expert_mask_area.append(area_e)
+            sample_mask_area.append(area_s)
 
             # TODO: document this
             embs.append(np.dot(vectors[image_name][0].ravel(), vectors[image_name][i].ravel()))
@@ -141,16 +150,17 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
         row = [image_name]
         for i in range(3):
             row += [conf_mats[i], ious[i], precisions[i], recalls[i], fprs[i], fnrs[i], f1s[i],
-                    image_prefs[i], image_sufs[i],
-                    fp_edts[i], fn_edts[i], embs[i]]
+                    expert_mask_area[i], sample_mask_area[i],
+                    fp_edts[i], fn_edts[i], embs[i],
+                    image_prefs[i], image_sufs[i]]
         data.append(row)
 
     # build a data frame out of computed values and split it into train and validation
     df = pd.DataFrame(data, columns=[
         'image_name',
-        'cm1', 'iou1', 'pr1', 'rc1', 'fpr1', 'fnr1', 'f11', 'i_prf1', 'i_suf1', 'fp_edt1', 'fn_edt1', 'emb1',
-        'cm2', 'iou2', 'pr2', 'rc2', 'fpr2', 'fnr2', 'f12', 'i_prf2', 'i_suf2', 'fp_edt2', 'fn_edt2', 'emb2',
-        'cm3', 'iou3', 'pr3', 'rc3', 'fpr3', 'fnr3', 'f13', 'i_prf3', 'i_suf3', 'fp_edt3', 'fn_edt3', 'emb3',
+        'cm1', 'iou1', 'pr1', 'rc1', 'fpr1', 'fnr1', 'f11', 'a_exp1', 'a_smp1', 'fp_edt1', 'fn_edt1', 'emb1', 'i_prf1', 'i_suf1',
+        'cm2', 'iou2', 'pr2', 'rc2', 'fpr2', 'fnr2', 'f12', 'a_exp2', 'a_smp2', 'fp_edt2', 'fn_edt2', 'emb2', 'i_prf2', 'i_suf2',
+        'cm3', 'iou3', 'pr3', 'rc3', 'fpr3', 'fnr3', 'f13', 'a_exp3', 'a_smp3', 'fp_edt3', 'fn_edt3', 'emb3', 'i_prf3', 'i_suf3',
     ])
     train_df = df[:len(train_image_names)]
     val_df = df[len(train_image_names):]
@@ -212,8 +222,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
     val_preds = reg.predict(X_v).reshape((-1, 3))
     train_preds = reg.predict(X_t).reshape((-1, 3))
 
-    if verbose and hasattr(reg, 'feature_importances_'):
-        print(reg.feature_importances_.tolist())
+    if hasattr(reg, 'feature_importances_') and feature_importances is not None:
+        feature_importances.append(reg.feature_importances_.tolist())
 
     train_preds = np.round(train_preds)
     val_preds = np.round(val_preds)
@@ -293,5 +303,9 @@ def make_final_prediction(**kwargs):
 
 
 if __name__ == '__main__':
-    multi_eval_model(main_model, val_size=15, n_repeats=20, regressor_type='RF')
+    feature_importances = []
+    multi_eval_model(main_model, val_size=20, n_repeats=25, regressor_type='RF',
+                     feature_importances=feature_importances)
+    # with open('f_imps.pkl', 'wb') as f:
+    #     pickle.dump(feature_importances, f)
     # make_final_prediction(regressor_type='RF')
