@@ -6,7 +6,7 @@
 * False Positive Rate
 * False Negative Rate
 * Confusion Matrix
-* Euclidion Distance Transform
+* Euclidian Distance Transform
 
 Дополнительно в качестве характеристик использовались латентные векторы, полученные от автоэнкодера.
 
