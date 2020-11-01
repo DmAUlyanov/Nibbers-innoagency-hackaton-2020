@@ -26,8 +26,8 @@ def demo_show():
         show_images(images_to_show, image_name)
 
 
-def plot_label_hist(cls):
-    train_image_names, _ = split_train_val(n_val=0, seed=0)
+def plot_label_hist(dataset_path, cls):
+    train_image_names, _ = split_train_val(dataset_path, n_val=0, seed=0)
     labels = np.array(read_labels(train_image_names))
 
     if cls == -1:

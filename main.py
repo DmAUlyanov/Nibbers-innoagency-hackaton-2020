@@ -8,8 +8,9 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor, BaggingRegressor, AdaBoostRegressor
 from tqdm import tqdm
 import edt
+import argparse
 
-from utils import read_labels, compute_l1_errors, DATASET_PATH, show_images, read_binary_mask, split_train_val, \
+from utils import read_labels, compute_l1_errors, show_images, read_binary_mask, split_train_val, \
     read_csv, write_predictions
 
 
@@ -74,7 +75,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
     data = []
     for image_name in train_image_names + val_image_names:
         # read expert binary mask
-        mask_exp = read_binary_mask(os.path.join(DATASET_PATH, 'Expert', f'{image_name}_expert.png'))
+        mask_exp = read_binary_mask(os.path.join(kwargs['dataset_path'], 'Expert', f'{image_name}_expert.png'))
         # compute Euclidian Distance Transform (EDT) of the expert mask
         # EDT is a mapping where each empty pixel stores a distance value to the closest non-empty pixel
         # Note: if expert mask is empty, set its EDT at every point equal to 512, as if
@@ -96,7 +97,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
         embs = []
         for i in range(3):
             # read sample binary mask
-            mask_s = read_binary_mask(os.path.join(DATASET_PATH, f'sample_{i + 1}', f'{image_name}_s{i + 1}.png'))
+            mask_s = read_binary_mask(os.path.join(kwargs['dataset_path'], f'sample_{i + 1}', f'{image_name}_s{i + 1}.png'))
             # combine the expert and sample masks and compute their flattened confusion matrix
             comb_mask = mask_exp * 2 + mask_s
             conf_mat = np.bincount(comb_mask.ravel(), minlength=4)
@@ -131,8 +132,8 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
             fn_edts.append(fn_edt)
 
             # TODO: document this
-            embs.append(np.dot(vectors[image_name][0].ravel(), vectors[image_name][i].ravel()))
-            # embs.append(0)
+            # embs.append(np.dot(vectors[image_name][0].ravel(), vectors[image_name][i].ravel()))
+            embs.append(0)
 
             # just in case ¯\_(ツ)_/¯
             image_prefs.append(int(image_name.split('_')[0]))
@@ -156,7 +157,7 @@ def main_model(train_image_names, val_image_names, regressor_type=None, verbose=
     val_df = df[len(train_image_names):]
 
     # retrieve training labels
-    Y = np.array(read_labels(train_image_names)).ravel()
+    Y = np.array(read_labels(kwargs['dataset_path'], train_image_names)).ravel()
 
     # extract features from the train data frame and normalize them
     X_t = extract_features_from_df(train_df)
@@ -236,7 +237,7 @@ def eval_model(model, train_image_names, val_image_names, **kwargs):
     return train_errors, val_errors
 
 
-def multi_eval_model(model, val_size, n_repeats, **kwargs):
+def multi_eval_model(dataset_path, model, val_size, n_repeats, **kwargs):
     """
     Perform several repeated experiments on different train-validation data splits and average resulting L1 errors
     :param model: model to evaluate
@@ -248,7 +249,7 @@ def multi_eval_model(model, val_size, n_repeats, **kwargs):
 
     total_train_errors, total_val_errors = [], []
     for _ in tqdm(range(n_repeats)):
-        train_image_names, val_image_names = split_train_val(val_size, np.random.randint(1 << 30))
+        train_image_names, val_image_names = split_train_val(dataset_path, val_size, np.random.randint(1 << 30))
         train_errors, val_errors = eval_model(model, train_image_names, val_image_names,
                                               verbose=n_repeats == 1, **kwargs)
         total_train_errors.append(train_errors)
@@ -275,23 +276,27 @@ def make_final_prediction(**kwargs):
 
     # read test image names
     test_image_names = []
-    for r in read_csv(os.path.join(DATASET_PATH, 'SecretPart_dummy.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3']):
+    for r in read_csv(os.path.join(kwargs['dataset_path'], 'SecretPart_dummy.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3']):
         test_image_names.append(r['Case'].split('.')[0])
 
     # get the whole train dataset
-    train_image_names, _ = split_train_val(0, 0)
+    train_image_names, _ = split_train_val(kwargs['dataset_path'], 0, 0)
 
     # train and evaluate the model
     train_predictions, test_predictions = main_model(train_image_names, test_image_names, verbose=True, **kwargs)
 
     # compute train errors
-    train_errors = compute_l1_errors(read_labels(train_image_names), train_predictions)
+    train_errors = compute_l1_errors(read_labels(kwargs['dataset_path'], train_image_names), train_predictions)
     print('train error', train_errors.mean(), train_errors)
 
     # write predictions
-    write_predictions(test_image_names, test_predictions)
+    write_predictions(kwargs['prediction_path'], test_image_names, test_predictions)
 
 
 if __name__ == '__main__':
-    multi_eval_model(main_model, val_size=15, n_repeats=20, regressor_type='RF')
-    # make_final_prediction(regressor_type='RF')
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('dataset_path', type=str)
+
+    args = parser.parse_args()
+    # multi_eval_model(main_model, val_size=15, n_repeats=20, regressor_type='RF')
+    make_final_prediction(dataset_path=args.dataset_path, prediction_path='./', regressor_type='RF')

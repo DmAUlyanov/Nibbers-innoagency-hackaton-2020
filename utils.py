@@ -7,8 +7,6 @@ import os
 import matplotlib
 matplotlib.use('TkAgg')
 
-DATASET_PATH = '../Dataset'
-
 
 def read_image(filepath):
     """
@@ -66,11 +64,11 @@ def read_csv(filepath, field_names):
     return data
 
 
-def read_labels(image_names):
+def read_labels(dataset_path, image_names):
     """
     Read ground truth label scores for required images from the CSV file
     """
-    data = read_csv(os.path.join(DATASET_PATH, 'OpenPart.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3'])
+    data = read_csv(os.path.join(dataset_path, 'OpenPart.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3'])
 
     labels = []
     for image_name in image_names:
@@ -114,12 +112,12 @@ class seeded_random:
         np.random.seed(self.after_seed)
 
 
-def split_train_val(n_val, seed):
+def split_train_val(dataset_path, n_val, seed):
     """
     Randomly split data into train and validation parts according to the given seed
     """
 
-    data = read_csv(os.path.join(DATASET_PATH, 'OpenPart.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3'])
+    data = read_csv(os.path.join(dataset_path, 'OpenPart.csv'), ['Case', 'Sample 1', 'Sample 2', 'Sample 3'])
     image_names = list(map(lambda it: it['Case'].split('.')[0], data))
 
     with seeded_random(seed):
@@ -136,9 +134,9 @@ def split_train_val(n_val, seed):
     return train_image_names, val_image_names
 
 
-def write_predictions(image_names, predictions):
+def write_predictions(path, image_names, predictions):
     fieldnames = ['Case', 'Sample 1', 'Sample 2', 'Sample 3']
-    with open('NibbersSubmission.csv', 'w') as f:
+    with open(os.path.join([path, 'NibbersSubmission.csv']), 'w') as f:
         writer = csv.DictWriter(f, fieldnames)
         writer.writeheader()
         for image_name, pred in zip(image_names, predictions):
